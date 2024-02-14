@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+//int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+
+
+
+
 // On receipt of input, adds the input to the list of messages
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
