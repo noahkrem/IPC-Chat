@@ -3,7 +3,7 @@
 all: test
 
 test: list.o testDriver.o
-	gcc list.o testDriver.oa -o test
+	gcc list.o testDriver.o -o test
 
 list.o: list.c list.h
 	gcc -c list.c
