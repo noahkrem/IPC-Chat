@@ -2,7 +2,7 @@
 
 all: s-talk
 
-test: list.o IPC-Chat.o
+s-talk: list.o IPC-Chat.o
 	gcc list.o IPC-Chat.o -o s-talk
 
 list.o: list.c list.h

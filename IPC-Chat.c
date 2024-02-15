@@ -32,3 +32,9 @@ void * UDP_input_thread() {
 void * screen_output_thread() {
 
 }
+
+
+int main (int argc, char **argv[]) {
+    
+    return 0;
+}
