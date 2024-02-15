@@ -1,15 +1,15 @@
 # Note: This file is not finished yet
 
-all: test
+all: s-talk
 
-test: list.o testDriver.o
-	gcc list.o testDriver.o -o test
+test: list.o IPC-Chat.o
+	gcc list.o IPC-Chat.o -o s-talk
 
 list.o: list.c list.h
 	gcc -c list.c
 
-testDriver.o: testDriver.c list.h
-	gcc -c testDriver.c
+IPC-Chat.o: IPC-Chat.c list.h
+	gcc -c IPC-Chat.c
 
 clean:
-	rm -f test *.o
+	rm -f s-talk *.o
