@@ -53,9 +53,6 @@ Finding host name: type "hostname" into the command line
 
 #define NUM_THREADS 4
 
-// NOTE: THIS PORT WILL BE ENTERED BY THE USER
-#define PORT 23432
-
 
 // GLOBALS
 List *listRx;
@@ -128,7 +125,7 @@ int main (int argc, char *argv[]) {
     memset(&sock_in, 0, sizeof(sock_in));
     sock_in.sin_family = AF_INET;
     sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
-    sock_in.sin_port = htons(PORT); // htons = host to network short
+    sock_in.sin_port = htons(localPort); // htons = host to network short
 
     // CREATE AND BIND SOCKET
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0); // Create the socket locally
@@ -180,17 +177,6 @@ int main (int argc, char *argv[]) {
 
     // CLOSE SOCKET
     close(socketDescriptor);
-
-    
-
-                            
-
-
-
-
-
-    // Thread ID, must be unique for each thread we create
-    pthread_t tids[NUM_THREADS];
 
 
 
