@@ -145,10 +145,6 @@ int main (int argc, char *argv[]) {
         int bytesRx = recvfrom(socketDescriptor, messageRx, LIST_MAX_NUM_NODES, 0,
                                     (struct sockaddr *)&sinRemote, &sin_len);
 
-        // Null terminate the string
-        // int terminateIdx = (bytesRx < LIST_MAX_NUM_NODES) ? bytesRx : LIST_MAX_NUM_NODES - 1;
-        // messageRx[terminateIdx] = 0;
-        // printf("Message received (%d bytes): \n>> %s\n", bytesRx, messageRx);
 
         // PROCESS MESSAGE
         for (int i = 0; i < bytesRx; i++) {
@@ -165,13 +161,17 @@ int main (int argc, char *argv[]) {
 
 
         // CREATE REPLY
-        // char messageTx[LIST_MAX_NUM_NODES];
-        // sprintf(messageTx, "Hello\n");
+        char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
+        fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
+        for (int i = 0; i < (strlen(messageTx) + 1); i++) {
+            List_append(listTx, &messageTx[i]);
+        }
+    
 
         // SEND REPLY
-        // sin_len = sizeof(sinRemote);
-        // sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
-        //         (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        sin_len = sizeof(sinRemote);
+        sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
+                (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
 
     }
 
