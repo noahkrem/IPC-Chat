@@ -45,6 +45,9 @@ Get Address:
     const char *gai_strerror(int errcode);
 
 
+------OTHER------
+Finding host name: type "hostname" into the command line
+
 */
 
 
@@ -53,6 +56,12 @@ Get Address:
 
 // NOTE: THIS PORT WILL BE ENTERED BY THE USER
 #define PORT 23432
+
+
+// GLOBALS
+List *listRx;
+List *listTx;
+
 
 
 
@@ -96,7 +105,12 @@ int main (int argc, char **argv[]) {
         exit(-1);
     }
 
-    // INITIALIZE
+    // CREATE LISTS
+    listRx = List_create();
+    listTx = List_create();
+
+
+    // INITIALIZE SOCKETS
     struct sockaddr_in sock_in;
     memset(&sock_in, 0, sizeof(sock_in));
     sock_in.sin_family = AF_INET;
@@ -118,20 +132,32 @@ int main (int argc, char **argv[]) {
                                     (struct sockaddr *)&sinRemote, &sin_len);
 
         // Null terminate the string
-        int terminateIdx = (bytesRx < LIST_MAX_NUM_NODES) ? bytesRx : LIST_MAX_NUM_NODES - 1;
-        messageRx[terminateIdx] = 0;
-        printf("Message received (%d bytes): \n>> %s\n", bytesRx, messageRx);
+        // int terminateIdx = (bytesRx < LIST_MAX_NUM_NODES) ? bytesRx : LIST_MAX_NUM_NODES - 1;
+        // messageRx[terminateIdx] = 0;
+        // printf("Message received (%d bytes): \n>> %s\n", bytesRx, messageRx);
 
         // PROCESS MESSAGE
+        for (int i = 0; i < bytesRx; i++) {
+            List_append(listRx, &messageRx[i]);
+        }
+
+        
+        // OUTPUT TO MONITOR
+        printf("Message received (%d bytes): \n>>", bytesRx);
+        while (List_first(listRx) != NULL) {
+            printf("%c", *(char *)List_remove(listRx));
+        }
+        printf("\n");
+
 
         // CREATE REPLY
-        char messageTx[LIST_MAX_NUM_NODES];
-        sprintf(messageTx, "Hello\n");
+        // char messageTx[LIST_MAX_NUM_NODES];
+        // sprintf(messageTx, "Hello\n");
 
         // SEND REPLY
-        sin_len = sizeof(sinRemote);
-        sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
-                (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        // sin_len = sizeof(sinRemote);
+        // sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
+        //         (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
 
     }
 
