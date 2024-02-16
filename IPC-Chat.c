@@ -63,8 +63,20 @@ List *listRx;
 List *listTx;
 int localPort;
 int remotePort;
+pthread_t tids[NUM_THREADS];
 
 
+enum thread_type {
+    keyboard,
+    UDP_output,
+    UPD_input,
+    screen_output
+};
+
+struct UDP_input_struct {
+    char messageRx[LIST_MAX_NUM_NODES];
+    int bytesRx
+};
 
 
 // On receipt of input, adds the input to the list of messages
@@ -78,8 +90,6 @@ void * keyboard_thread () {
 // Take each message off this list and send it over the network
 //  to the remote client
 void * UDP_output_thread() {
-
-
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
 }
 
@@ -87,9 +97,22 @@ void * UDP_output_thread() {
 //  message on the list of messages that need to be printed to
 //  the local screen
 void * UDP_input_thread() {
+    
+    struct sockaddr_in sinRemote;   // Output parameter
+    unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
+    char messageRx[LIST_MAX_NUM_NODES];    // Client data written into here
+                                // This is effectively a buffer for receive
+    int bytesRx = recvfrom(socketDescriptor, messageRx, LIST_MAX_NUM_NODES, 0,
+                                (struct sockaddr *)&sinRemote, &sin_len);
 
+    struct UDP_input_struct *output_ptr = malloc(sizeof(*output_ptr));
+    for(int i = 0; i < strlen(messageRx); i++) {
+        output_ptr->messageRx[i] = messageRx[i];
+    }
+    output_ptr->bytesRx = bytesRx;
+    
+    pthread_exit(output_ptr); 
 
-    pthread_exit(0);    // Instead of 0, we can also return a something in this line
 }
 
 // Take each message off of the list and output to the screen
@@ -130,12 +153,17 @@ int main (int argc, char *argv[]) {
     while (1) {
 
         // RECEIVE
-        struct sockaddr_in sinRemote;   // Output parameter
-        unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
-        char messageRx[LIST_MAX_NUM_NODES];    // Client data written into here
-                                    // This is effectively a buffer for receive
-        int bytesRx = recvfrom(socketDescriptor, messageRx, LIST_MAX_NUM_NODES, 0,
-                                    (struct sockaddr *)&sinRemote, &sin_len);
+        struct UDP_input_struct *Rx = malloc(sizeof(*Rx));
+        pthread_create(&tids[0], NULL, UDP_output_thread, NULL);
+        pthread_join(tids[0], (void**)&Rx);
+
+
+        // struct sockaddr_in sinRemote;   // Output parameter
+        // unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
+        // char messageRx[LIST_MAX_NUM_NODES];    // Client data written into here
+        //                             // This is effectively a buffer for receive
+        // int bytesRx = recvfrom(socketDescriptor, messageRx, LIST_MAX_NUM_NODES, 0,
+        //                             (struct sockaddr *)&sinRemote, &sin_len);
 
         // Null terminate the string
         // int terminateIdx = (bytesRx < LIST_MAX_NUM_NODES) ? bytesRx : LIST_MAX_NUM_NODES - 1;
@@ -143,13 +171,13 @@ int main (int argc, char *argv[]) {
         // printf("Message received (%d bytes): \n>> %s\n", bytesRx, messageRx);
 
         // PROCESS MESSAGE
-        for (int i = 0; i < bytesRx; i++) {
-            List_append(listRx, &messageRx[i]);
+        for (int i = 0; i < Rx->bytesRx; i++) {
+            List_append(listRx, &Rx->messageRx[i]);
         }
 
         
         // OUTPUT TO MONITOR
-        printf("Message received (%d bytes): \n>>", bytesRx);
+        printf("Message received (%d bytes): \n>>", Rx->bytesRx);
         while (List_first(listRx) != NULL) {
             printf("%c", *(char *)List_remove(listRx));
         }
