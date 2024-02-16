@@ -52,7 +52,7 @@ Get Address:
 #define NUM_LISTS 2
 
 // NOTE: THIS PORT WILL BE ENTERED BY THE USER
-#define PORT 1025
+#define PORT 23432
 
 
 
@@ -91,12 +91,10 @@ void * screen_output_thread() {
 
 int main (int argc, char **argv[]) {
 
-    /*
     if (argc < 4) {
         printf("Usage: s-talk [my port number] [remote machine name] [remote port number]\n");
         exit(-1);
     }
-    */
 
     // INITIALIZE
     struct sockaddr_in sock_in;
