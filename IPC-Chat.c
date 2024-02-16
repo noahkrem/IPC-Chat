@@ -61,6 +61,8 @@ Finding host name: type "hostname" into the command line
 // GLOBALS
 List *listRx;
 List *listTx;
+int localPort;
+int remotePort;
 
 
 
@@ -98,12 +100,16 @@ void * screen_output_thread() {
 }
 
 
-int main (int argc, char **argv[]) {
+int main (int argc, char *argv[]) {
 
     if (argc < 4) {
         printf("Usage: s-talk [my port number] [remote machine name] [remote port number]\n");
         exit(-1);
     }
+
+    // CHECK PORT AVAILABILITY
+    localPort = atoi(argv[1]);
+    remotePort = atoi(argv[3]);
 
     // CREATE LISTS
     listRx = List_create();
