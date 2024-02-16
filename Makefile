@@ -2,13 +2,13 @@
 
 all: s-talk
 
-s-talk: list.o IPC-Chat.o
-	gcc list.o IPC-Chat.o -o s-talk
+s-talk: List.o IPC-Chat.o
+	gcc List.o IPC-Chat.o -o s-talk
 
-list.o: list.c list.h
-	gcc -c list.c
+List.o: List.c List.h
+	gcc -c List.c
 
-IPC-Chat.o: IPC-Chat.c list.h
+IPC-Chat.o: IPC-Chat.c List.h
 	gcc -c IPC-Chat.c
 
 clean:

@@ -52,7 +52,7 @@ Get Address:
 #define NUM_LISTS 2
 
 // NOTE: THIS PORT WILL BE ENTERED BY THE USER
-#define PORT 23432
+#define PORT 1025
 
 
 
