@@ -52,7 +52,6 @@ Finding host name: type "hostname" into the command line
 
 
 #define NUM_THREADS 4
-#define NUM_LISTS 2
 
 // NOTE: THIS PORT WILL BE ENTERED BY THE USER
 #define PORT 23432
@@ -63,7 +62,15 @@ List *listRx;
 List *listTx;
 int localPort;
 int remotePort;
+pthread_t tids[NUM_THREADS];
 
+
+enum thread_type {
+    keyboard,
+    UDP_output,
+    UPD_input,
+    screen_output
+};
 
 
 
@@ -125,6 +132,10 @@ int main (int argc, char *argv[]) {
 
     // CREATE AND BIND SOCKET
     int socketDescriptor = socket(PF_INET, SOCK_DGRAM, 0); // Create the socket locally
+    if (socketDescriptor < 0) {
+        perror("Failed to create local socket\n");
+        exit(-1);
+    }
     bind(socketDescriptor, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
 
     while (1) {
