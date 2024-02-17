@@ -209,16 +209,67 @@ int main (int argc, char *argv[]) {
         outputIP = (char *)malloc(strlen(argv[2]) + 1);
         strcpy(outputIP, argv[2]);
     }
+    struct in_addr addr_out;
+    inet_aton(outputIP, &addr_out);
     
-
 
     // CREATE LISTS
     listRx = List_create();
     listTx = List_create();
 
+
     while (1) {
 
-        UDP_input_thread();
+        // UDP_input_thread();
+
+        // INITIALIZE SOCKETS
+
+        // Input socket
+        struct sockaddr_in sock_in;
+        memset(&sock_in, 0, sizeof(sock_in));
+        sock_in.sin_family = AF_INET;
+        sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
+        sock_in.sin_port = htons(localPort); // htons = host to network short
+
+        // Output socket
+        struct sockaddr_in sock_out;
+        memset(&sock_out, 0, sizeof(sock_out));
+        sock_out.sin_family = AF_INET;
+        sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;    // htonl = host to network long
+        sock_out.sin_port = htons(remotePort); // htons = host to network short
+
+
+        // CREATE AND BIND SOCKETS
+
+        // Input socket
+        int socketDescriptor_in = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
+        if (socketDescriptor_in < 0) {
+            perror("Failed to create local socket\n");
+            exit(-1);
+        }
+        bind(socketDescriptor_in, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
+
+        // Output socket
+        int socketDescriptor_out = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket remotely
+        if (socketDescriptor_in < 0) {
+            perror("Failed to create remote socket\n");
+            exit(-1);
+        }
+        
+        printf("receiving...\n");
+        // RECEIVE
+        struct sockaddr_in sinRemote;   // Output parameter
+        unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
+        char messageRx[LIST_MAX_NUM_NODES];    // Client data written into here
+                                                // This is effectively a buffer for receive
+        int bytesRx = recvfrom(socketDescriptor_in, messageRx, LIST_MAX_NUM_NODES, 0,
+                                (struct sockaddr *)&sinRemote, &sin_len);
+
+
+        // PROCESS MESSAGE
+        for (int i = 0; i < bytesRx; i++) {
+            List_append(listRx, &messageRx[i]);
+        }
         
         // OUTPUT TO MONITOR
         printf(">>");
@@ -228,20 +279,24 @@ int main (int argc, char *argv[]) {
         printf("\n");
 
 
-        // // CREATE REPLY
-        // char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
-        // fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
-        // char *newChar = (char *)malloc(strlen(messageTx) + 1);
-        // strcpy(newChar, messageTx);
-        // for (int i = 0; i < strlen(newChar); i++) {
-        //     List_append(listTx, &newChar[i]);
-        // }
+        // CREATE REPLY
+        printf("creating reply...\n");
+        char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
+        fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
+        char *newChar = (char *)malloc(strlen(messageTx) + 1);
+        strcpy(newChar, messageTx);
+        for (int i = 0; i < strlen(newChar); i++) {
+            List_append(listTx, &newChar[i]);
+        }
 
-        UDP_output_thread();
+        // UDP_output_thread();
 
-        // sin_len = sizeof(sinRemote);
-        // sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
-        //         (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        printf("outputting...\n");
+        sin_len = sizeof(sinRemote);
+        sendto(socketDescriptor_out, messageTx, strlen(messageTx), 0, 
+                 (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+
+        
 
     }
     

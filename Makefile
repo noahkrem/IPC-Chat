@@ -1,4 +1,3 @@
-# Note: This file is not finished yet
 
 all: s-talk
 
