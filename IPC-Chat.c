@@ -82,6 +82,18 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
+    while(1) {
+        
+        printf("creating reply...\n");
+        char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
+        fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
+        char *newChar = (char *)malloc(strlen(messageTx) + 1);
+        strcpy(newChar, messageTx);
+        for (int i = 0; i < strlen(newChar); i++) {
+            List_append(listTx, &newChar[i]);
+        }
+
+    }
 
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
 }
@@ -227,6 +239,7 @@ int main (int argc, char *argv[]) {
     pthread_attr_init(&attr[UDP_INPUT]);
     pthread_create(&tids[UDP_INPUT], &attr[UDP_INPUT], UDP_input_thread, NULL);
 
+    pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);
 
 
     while (1) {
@@ -259,15 +272,15 @@ int main (int argc, char *argv[]) {
         printf("\n");
 
 
-        // CREATE REPLY
-        printf("creating reply...\n");
-        char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
-        fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
-        char *newChar = (char *)malloc(strlen(messageTx) + 1);
-        strcpy(newChar, messageTx);
-        for (int i = 0; i < strlen(newChar); i++) {
-            List_append(listTx, &newChar[i]);
-        }
+        // // CREATE REPLY
+        // printf("creating reply...\n");
+        // char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
+        // fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
+        // char *newChar = (char *)malloc(strlen(messageTx) + 1);
+        // strcpy(newChar, messageTx);
+        // for (int i = 0; i < strlen(newChar); i++) {
+        //     List_append(listTx, &newChar[i]);
+        // }
 
         // UDP_output_thread();
 
