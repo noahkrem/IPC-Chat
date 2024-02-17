@@ -228,6 +228,7 @@ int main (int argc, char *argv[]) {
     pthread_create(&tids[UDP_INPUT], &attr[UDP_INPUT], UDP_input_thread, NULL);
 
 
+
     while (1) {
 
         
