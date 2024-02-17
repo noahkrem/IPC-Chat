@@ -285,10 +285,14 @@ int main (int argc, char *argv[]) {
         // UDP_output_thread();
 
         printf("outputting...\n");
-        struct sockaddr_in sinRemote;
-        int sin_len = sizeof(sinRemote);
-        sendto(socketDescriptor_out, messageTx, strlen(messageTx), 0, 
-                 (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        if (List_count(listTx) > 0) {
+            struct sockaddr_in sinRemote;
+            int sin_len = sizeof(sinRemote);
+            char *output = List_remove(listTx);
+            sendto(socketDescriptor_out, output, sizeof(output), 0, 
+                    (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        }
+
 
     }
 
