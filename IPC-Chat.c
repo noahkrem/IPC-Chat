@@ -136,9 +136,9 @@ void * UDP_output_thread() {
 
     }
 
-    sin_len = sizeof(sinRemote);
-    sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
-                (struct sockaddr *)&sinRemote, sin_len);  
+    // sin_len = sizeof(sinRemote);
+    // sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
+    //             (struct sockaddr *)&sinRemote, sin_len);  
 
     // CLOSE SOCKET
     close(socketDescriptor);
@@ -201,7 +201,6 @@ void * screen_output_thread() {
             printf(">> ");
             printf("%c", *(char *)List_remove(listRx));
         }
-        printf("\n");
     }
 
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
@@ -240,7 +239,7 @@ int main (int argc, char *argv[]) {
     pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);
     pthread_create(&tids[UDP_INPUT], NULL, UDP_input_thread, NULL);
     pthread_create(&tids[UDP_OUTPUT], NULL, screen_output_thread, NULL);
-    pthread_create(&tids[SCREEN_OUTPUT], NULL, screen_output_thread, NULL)
+    pthread_create(&tids[SCREEN_OUTPUT], NULL, screen_output_thread, NULL);
 
 
     pthread_join(tids[KEYBOARD], NULL);
