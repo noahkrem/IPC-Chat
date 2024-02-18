@@ -55,6 +55,8 @@ Finding host name: type "hostname" into the command line
 
 #define NUM_THREADS 4
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 // TESTING
 const char LOCAL_HOST[] = "127.0.0.1";
@@ -125,7 +127,7 @@ void * UDP_output_thread() {
 
     // MAIN LOOP
     while (1) {
-
+        pthread_mutex_lock(&mutex);
         // SEND REPLY
         if (List_count(listTx) > 0) {
             
@@ -139,6 +141,7 @@ void * UDP_output_thread() {
             }
 
         }
+        pthread_mutex_unlock(&mutex);
 
     }
 
@@ -187,9 +190,12 @@ void * UDP_input_thread() {
 
         // PROCESS MESSAGE
         printf("processing...\n");
+        pthread_mutex_lock(&mutex);
         for (int i = 0; i < bytesRx; i++) {
+            printf("appending... \n");
             List_append(listRx, &messageRx[i]);
         }
+        pthread_mutex_unlock(&mutex);
 
     }
     
@@ -204,10 +210,12 @@ void * screen_output_thread() {
 
     printf("outputting to screen...\n");
     while(1) {
+        pthread_mutex_lock(&mutex);
         while (List_count(listRx) != 0) {
             printf(">> ");
             printf("%c", *(char *)List_remove(listRx));
         }
+        pthread_mutex_unlock(&mutex);
     }
 
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
