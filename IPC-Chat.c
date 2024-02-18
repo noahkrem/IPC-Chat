@@ -129,7 +129,7 @@ void * UDP_output_thread() {
     while (1) {
         pthread_mutex_lock(&mutex);
         // SEND REPLY
-        if (List_count(listTx) > 0) {
+        while (List_count(listTx) > 0) {
             
             printf("sendto...\n");
             List_first(listTx);
@@ -139,7 +139,6 @@ void * UDP_output_thread() {
             if (status < 0) {
                 perror("Failed to send");
             }
-
         }
         pthread_mutex_unlock(&mutex);
 
@@ -189,13 +188,17 @@ void * UDP_input_thread() {
 
 
         // PROCESS MESSAGE
-        printf("processing...\n");
-        pthread_mutex_lock(&mutex);
-        for (int i = 0; i < bytesRx; i++) {
-            printf("appending... \n");
-            List_append(listRx, &messageRx[i]);
+        if(bytesRx != 0){
+            printf("processing...\n");
+            // printf("\n\n%i\n\n", bytesRx);
+            pthread_mutex_lock(&mutex);
+            for (int i = 0; i < bytesRx; i++) {
+                printf("appending... \n");
+                List_append(listRx, &messageRx[i]);
+            }
+            pthread_mutex_unlock(&mutex);
+            bytesRx = 0;
         }
-        pthread_mutex_unlock(&mutex);
 
     }
     
@@ -209,12 +212,15 @@ void * UDP_input_thread() {
 void * screen_output_thread() {
 
     printf("outputting to screen...\n");
+    printf("\n\nscreen output %i\n\n", List_count(listRx));
     while(1) {
         pthread_mutex_lock(&mutex);
+        List_first(listRx);
         while (List_count(listRx) != 0) {
-            printf(">> ");
+            // printf(">> ");
             printf("%c", *(char *)List_remove(listRx));
         }
+        fflush(stdout);
         pthread_mutex_unlock(&mutex);
     }
 
