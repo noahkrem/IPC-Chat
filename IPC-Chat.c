@@ -133,15 +133,15 @@ void * UDP_output_thread() {
     unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
 
     // SEND REPLY
-    // List_first(listTx);
-    // if (List_count(listTx) > 0) {
+    List_first(listTx);
+    if (List_count(listTx) > 0) {
         
-    //     char *output = List_remove(listTx);
-    //     unsigned int sin_len = sizeof(sinRemote);
-    //     sendto(socketDescriptor, output, sizeof(output), 0, 
-    //             (struct sockaddr *)&sinRemote, sin_len);
+        char *output = List_remove(listTx);
+        unsigned int sin_len = sizeof(sinRemote);
+        sendto(socketDescriptor, output, sizeof(output), 0, 
+                (struct sockaddr *)&sinRemote, sin_len);
 
-    // }
+    }
 
     sin_len = sizeof(sinRemote);
     sendto(socketDescriptor, messageTx, strlen(messageTx), 0, 
@@ -202,6 +202,14 @@ void * UDP_input_thread() {
 // Take each message off of the list and output to the screen
 void * screen_output_thread() {
 
+    printf("outputting...\n");
+    while(1) {
+        printf(">>");
+        while (List_count(listRx) != 0) {
+            printf("%c", *(char *)List_remove(listRx));
+        }
+        printf("\n");
+    }
 
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
 }
@@ -240,6 +248,7 @@ int main (int argc, char *argv[]) {
     pthread_create(&tids[UDP_INPUT], &attr[UDP_INPUT], UDP_input_thread, NULL);
 
     pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);
+    pthread_create(&tids[SCREEN_OUTPUT], NULL, screen_output_thread, NULL);
 
 
     while (1) {
@@ -284,14 +293,14 @@ int main (int argc, char *argv[]) {
 
         // UDP_output_thread();
 
-        printf("outputting...\n");
-        if (List_count(listTx) > 0) {
-            struct sockaddr_in sinRemote;
-            int sin_len = sizeof(sinRemote);
-            char *output = List_remove(listTx);
-            sendto(socketDescriptor_out, output, sizeof(output), 0, 
-                    (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
-        }
+        // printf("outputting...\n");
+        // if (List_count(listTx) > 0) {
+        //     struct sockaddr_in sinRemote;
+        //     int sin_len = sizeof(sinRemote);
+        //     char *output = List_remove(listTx);
+        //     sendto(socketDescriptor_out, output, sizeof(output), 0, 
+        //             (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
+        // }
 
 
     }
