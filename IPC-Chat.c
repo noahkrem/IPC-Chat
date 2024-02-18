@@ -82,9 +82,11 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
+    printf("creating reply...\n");
+    
     while(1) {
         
-        printf("creating reply...\n");
+        
         char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
         fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
         char *newChar = (char *)malloc(strlen(messageTx) + 1);
@@ -102,16 +104,7 @@ void * keyboard_thread () {
 //  to the remote client
 void * UDP_output_thread() {
 
-    printf("here\n");
-
-    // CREATE REPLY
-    char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
-    fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
-    char *newChar = (char *)malloc(strlen(messageTx) + 1);
-    strcpy(newChar, messageTx);
-    for (int i = 0; i < strlen(newChar); i++) {
-        List_append(listTx, &newChar[i]);
-    }
+    printf("output threading...\n");
 
     // INITIALIZE SOCKETS
     struct sockaddr_in sock_out;
@@ -158,7 +151,7 @@ void * UDP_output_thread() {
 //  the local screen
 void * UDP_input_thread() {
     
-    printf("threading...\n");
+    printf("input threading...\n");
 
     // INITIALIZE SOCKETS
     struct sockaddr_in sock_in;
@@ -202,10 +195,10 @@ void * UDP_input_thread() {
 // Take each message off of the list and output to the screen
 void * screen_output_thread() {
 
-    printf("outputting...\n");
+    printf("outputting to screen...\n");
     while(1) {
-        printf(">>");
         while (List_count(listRx) != 0) {
+            printf(">> ");
             printf("%c", *(char *)List_remove(listRx));
         }
         printf("\n");
@@ -244,68 +237,17 @@ int main (int argc, char *argv[]) {
 
     pthread_attr_t attr[NUM_THREADS];
 
-    pthread_attr_init(&attr[UDP_INPUT]);
-    pthread_create(&tids[UDP_INPUT], &attr[UDP_INPUT], UDP_input_thread, NULL);
-
     pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);
-    pthread_create(&tids[SCREEN_OUTPUT], NULL, screen_output_thread, NULL);
+    pthread_create(&tids[UDP_INPUT], NULL, UDP_input_thread, NULL);
+    pthread_create(&tids[UDP_OUTPUT], NULL, screen_output_thread, NULL);
+    pthread_create(&tids[SCREEN_OUTPUT], NULL, screen_output_thread, NULL)
 
 
-    while (1) {
-
-        
-        // INITIALIZE SOCKETS
-
-        // Output socket
-        struct sockaddr_in sock_out;
-        memset(&sock_out, 0, sizeof(sock_out));
-        sock_out.sin_family = AF_INET;
-        sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;    // htonl = host to network long
-        sock_out.sin_port = htons(remotePort); // htons = host to network short
-
-
-        // CREATE AND BIND SOCKETS
-
-        // Output socket
-        int socketDescriptor_out = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket remotely
-        if (socketDescriptor_out < 0) {
-            perror("Failed to create remote socket\n");
-            exit(-1);
-        }
-        
-        // OUTPUT TO MONITOR
-        printf(">>");
-        while (List_count(listRx) != 0) {
-            printf("%c", *(char *)List_remove(listRx));
-        }
-        printf("\n");
-
-
-        // // CREATE REPLY
-        // printf("creating reply...\n");
-        // char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
-        // fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
-        // char *newChar = (char *)malloc(strlen(messageTx) + 1);
-        // strcpy(newChar, messageTx);
-        // for (int i = 0; i < strlen(newChar); i++) {
-        //     List_append(listTx, &newChar[i]);
-        // }
-
-        // UDP_output_thread();
-
-        // printf("outputting...\n");
-        // if (List_count(listTx) > 0) {
-        //     struct sockaddr_in sinRemote;
-        //     int sin_len = sizeof(sinRemote);
-        //     char *output = List_remove(listTx);
-        //     sendto(socketDescriptor_out, output, sizeof(output), 0, 
-        //             (struct sockaddr *)&sinRemote, sin_len);    // We will have the client's IP address and port
-        // }
-
-
-    }
-
+    pthread_join(tids[KEYBOARD], NULL);
     pthread_join(tids[UDP_INPUT], NULL);
+    pthread_join(tids[UDP_OUTPUT], NULL);
+    pthread_join(tids[SCREEN_OUTPUT], NULL);
+
 
     
     return 0;
