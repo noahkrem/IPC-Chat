@@ -56,11 +56,11 @@ Finding host name: type "hostname" into the command line
 #define NUM_THREADS 4
 #define BUFFER_SIZE 1024
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-// TESTING
-const char LOCAL_HOST[] = "127.0.0.1";
+// CONSTANTS
+const char CODE_EXIT[] = "!";             // Used to determine when we should exit the program
+const char LOCAL_HOST[] = "127.0.0.1";  // Used to communicate with two terminals on the same host
 
 
 // GLOBALS
@@ -70,6 +70,8 @@ int localPort;
 int remotePort;
 char *outputIP;
 pthread_t tids[NUM_THREADS];
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+bool status_exit;
 
 
 enum thread_type {
@@ -85,7 +87,7 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
-    printf("keyboard threading...\n");
+    printf("Keyboard thread...\n");
     
 
     // LOOP
@@ -95,23 +97,35 @@ void * keyboard_thread () {
         fgets(messageTx, BUFFER_SIZE, stdin);
         char *newMessage = (char *)malloc(strlen(messageTx));
         strcpy(newMessage, messageTx);
-        
-        pthread_mutex_lock(&mutex);     // Lock thread
+
+        // LOCK THREAD
+        pthread_mutex_lock(&mutex);     
         List_append(listTx, newMessage);
         char *appendedItem = List_first(listTx);
-        printf("Appended the following message from keyboard: %s", appendedItem);
-        pthread_mutex_unlock(&mutex);   // Unlock thread
+
+        // Exit status recognized, initiate exit procedure
+        if (strncmp(newMessage, CODE_EXIT, 1) == 0) {
+            printf("Exiting keyboard thread...\n");
+            status_exit = true;
+            
+            // UNLOCK THREAD
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
+        }
+
+        // UNLOCK THREAD
+        pthread_mutex_unlock(&mutex);   
 
     }
 
-    pthread_exit(0);    // Instead of 0, we can also return a something in this line
+    pthread_exit(NULL);
 }
 
 // Take each message off this list and send it over the network
 //  to the remote client
 void * UDP_output_thread() {
 
-    printf("output threading...\n");
+    printf("UDP output thread...\n");
 
 
     // INITIALIZE SOCKETS
@@ -135,15 +149,22 @@ void * UDP_output_thread() {
     // LOOP
     while (1) {
 
+        // Exit status recognized, initiate exit procedure
+        if (status_exit == true) {
+
+            printf("Exiting UDP output thread...\n");
+            // CLOSE SOCKET & THREAD
+            close(socketDescriptor);
+            pthread_exit(NULL);
+
+        }
         // SEND REPLY
-        if (List_count(listTx) > 0) {
+        else if (List_count(listTx) > 0) {
             
             pthread_mutex_lock(&mutex);     // Lock thread
             void *output_void = List_first(listTx);
             List_remove(listTx);
             char *output = output_void;
-            printf("Sending the following message: ");
-            printf("%s\n", output);
             int status = sendto(socketDescriptor, output, sizeof(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
             if (status < 0) {
@@ -157,7 +178,7 @@ void * UDP_output_thread() {
 
     // CLOSE SOCKET & THREAD
     close(socketDescriptor);
-    pthread_exit(0);    // Instead of 0, we can also return a something in this line
+    pthread_exit(NULL);
 
 }
 
@@ -166,7 +187,7 @@ void * UDP_output_thread() {
 //  the local screen
 void * UDP_input_thread() {
     
-    printf("input threading...\n");
+    printf("UDP input thread...\n");
 
     // INITIALIZE SOCKETS
     struct sockaddr_in sock_in;
@@ -186,7 +207,8 @@ void * UDP_input_thread() {
 
     // LOOP
     while (1) {
-        
+
+
         // RECEIVE
         struct sockaddr_in sinRemote;   // Output parameter
         memset(&sinRemote, 0, sizeof(sinRemote));
@@ -197,44 +219,69 @@ void * UDP_input_thread() {
                                     (struct sockaddr *)&sinRemote, &sin_size);
 
 
+        // Exit status recognized, initiate exit procedure
+        if (status_exit == true) {
+
+            printf("Exiting UDP input thread...\n");
+            // CLOSE SOCKET & THREAD
+            close(socketDescriptor);
+            pthread_exit(NULL);
+
+        }
         // PROCESS MESSAGE
         if (bytesRx > 0) {
 
-            printf("List_append from input... \n");
             char *message = (char *)malloc(strlen(messageRx));
             strcpy(message, messageRx);
+
+            // LOCK THREAD
+            pthread_mutex_lock(&mutex);
+            
+            if (strncmp(message, CODE_EXIT, 1) == 0) {
+                
+                printf("Exiting UDP input thread...\n");
+                status_exit = true;
+                
+                // UNLOCK THREAD
+                pthread_mutex_unlock(&mutex);
+                pthread_exit(NULL);
+
+            }
+            
             List_append(listRx, message);
-
+            pthread_mutex_unlock(&mutex);
         }
-
     }
     
 
     // CLOSE SOCKET
     close(socketDescriptor);
-    pthread_exit(0);    // Instead of 0, we can also return a something in this line
+    pthread_exit(NULL);
 }
 
 // Take each message off of the list and output to the screen
 void * screen_output_thread() {
 
-    printf("screen output thread...\n");
+    printf("Screen output thread...\n");
 
 
     // LOOP
     while(1) {
 
-        if (List_count(listRx) > 0) {
-            printf("Outputting %i messages to keyboard...\n", List_count(listRx));
+        // Exit status recognized, initiate exit procedure
+        if (status_exit == true) {
+            printf("Exiting screen output thread...\n");
+            pthread_exit(NULL);
+        }
+        else if (List_count(listRx) > 0) {
             char *message = List_first(listRx);
             List_remove(listRx);
             printf("%s", message);
-            printf("Messages left: %i\n", List_count(listRx));
         }
 
     }
 
-    pthread_exit(0);    // Instead of 0, we can also return a something in this line
+    pthread_exit(NULL);
 }
 
 
@@ -244,6 +291,9 @@ int main (int argc, char *argv[]) {
         printf("Usage: s-talk [my port number] [remote machine name] [remote port number]\n");
         exit(-1);
     }
+
+    // Set exit status
+    status_exit = false;
 
     // Map ports
     localPort = atoi(argv[1]);
