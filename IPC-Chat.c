@@ -85,18 +85,23 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
-    printf("creating reply...\n");
+    printf("keyboard threading...\n");
     
+
+    // LOOP
     while(1) {
         
-        char messageTx[LIST_MAX_NUM_NODES]; // Buffer for input from keyboard
-        fgets(messageTx, LIST_MAX_NUM_NODES, stdin);
-        char *newChar = (char *)malloc(strlen(messageTx));
-        strcpy(newChar, messageTx);
-        for (int i = 0; i < strlen(newChar); i++) {
-            printf("List_append...\n");
-            List_append(listTx, &newChar[i]);
-        }
+        char messageTx[BUFFER_SIZE]; // Buffer for input from keyboard
+        fgets(messageTx, BUFFER_SIZE, stdin);
+        char *newMessage = messageTx;
+        strcpy(newMessage, messageTx);
+        
+        printf("List_append the following message: %s", newMessage);
+        pthread_mutex_lock(&mutex);
+        List_append(listTx, &newMessage);
+        char *appendedItem = List_first(listTx);
+        printf("Appended the following message: %s\n", appendedItem);
+        pthread_mutex_unlock(&mutex);
 
     }
 
@@ -109,6 +114,7 @@ void * UDP_output_thread() {
 
     printf("output threading...\n");
 
+
     // INITIALIZE SOCKETS
     struct sockaddr_in sock_out;
     struct in_addr addr_out;
@@ -118,6 +124,7 @@ void * UDP_output_thread() {
     sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;    // htonl = host to network long
     sock_out.sin_port = htons(remotePort); // htons = host to network short
 
+
     // CREATE AND BIND SOCKET
     int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
     if (socketDescriptor < 0) {
@@ -126,23 +133,24 @@ void * UDP_output_thread() {
     }
 
 
-    // MAIN LOOP
+    // LOOP
     while (1) {
-        pthread_mutex_lock(&mutex);
+
         // SEND REPLY
-        while (List_count(listTx) > 0) {
+        if (List_count(listTx) > 0) {
             
-            printf("sendto...\n");
-            List_first(listTx);
-            char *output = List_remove(listTx);
+            void *output_void = List_first(listTx);
+            List_remove(listTx);
+            char *output = output_void;
+            printf("Sending the following message: ");
+            printf("%s\n", output);
             int status = sendto(socketDescriptor, output, sizeof(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
             if (status < 0) {
                 perror("Failed to send");
             }
-        }
-        pthread_mutex_unlock(&mutex);
 
+        }
     }
 
 
@@ -175,30 +183,27 @@ void * UDP_input_thread() {
     bind(socketDescriptor, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
     
 
-    // MAIN LOOP
+    // LOOP
     while (1) {
         
         // RECEIVE
         struct sockaddr_in sinRemote;   // Output parameter
-        unsigned int sin_len = sizeof(sinRemote);   // In/out parameter
-        char messageRx[LIST_MAX_NUM_NODES];    // Client data written into here
+        memset(&sinRemote, 0, sizeof(sinRemote));
+        unsigned int sin_size = sizeof(sinRemote);   // In/out parameter
+        char messageRx[BUFFER_SIZE];    // Client data written into here
                                                 // This is effectively a buffer for receive
-        printf("receivefrom...\n");
-        int bytesRx = recvfrom(socketDescriptor, messageRx, LIST_MAX_NUM_NODES, 0,
-                                    (struct sockaddr *)&sinRemote, &sin_len);
+        int bytesRx = recvfrom(socketDescriptor, (char *)messageRx, BUFFER_SIZE, 0,
+                                    (struct sockaddr *)&sinRemote, &sin_size);
 
 
         // PROCESS MESSAGE
-        if(bytesRx != 0){
-            printf("processing...\n");
-            // printf("\n\n%i\n\n", bytesRx);
-            pthread_mutex_lock(&mutex);
-            for (int i = 0; i < bytesRx; i++) {
-                printf("appending... \n");
-                List_append(listRx, &messageRx[i]);
-            }
-            pthread_mutex_unlock(&mutex);
-            bytesRx = 0;
+        if (bytesRx > 0) {
+
+            printf("List_append from input... \n");
+            char *message = (char *)malloc(strlen(messageRx));
+            strcpy(message, messageRx);
+            List_append(listRx, message);
+
         }
 
     }
@@ -212,17 +217,20 @@ void * UDP_input_thread() {
 // Take each message off of the list and output to the screen
 void * screen_output_thread() {
 
-    printf("outputting to screen...\n");
-    printf("\n\nscreen output %i\n\n", List_count(listRx));
+    printf("screen output thread...\n");
+
+
+    // LOOP
     while(1) {
-        pthread_mutex_lock(&mutex);
-        List_first(listRx);
-        while (List_count(listRx) != 0) {
-            // printf(">> ");
-            printf("%c", *(char *)List_remove(listRx));
+
+        if (List_count(listRx) > 0) {
+            printf("Outputting %i messages to keyboard...\n", List_count(listRx));
+            char *message = List_first(listRx);
+            List_remove(listRx);
+            printf("%s", message);
+            printf("Messages left: %i\n", List_count(listRx));
         }
-        fflush(stdout);
-        pthread_mutex_unlock(&mutex);
+
     }
 
     pthread_exit(0);    // Instead of 0, we can also return a something in this line
