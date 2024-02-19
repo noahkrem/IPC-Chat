@@ -85,26 +85,6 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
-    // char buffer[4096];
-    // while(1) { //main while loop
-
-    //     //get and process keyboard input
-    //     fgets(buffer, 4096, stdin);
-    //     char * newItem = (char *)malloc(strlen(buffer) + 1);
-    //     strcpy(newItem, buffer);
-    //     newItem[strlen(buffer)] = '\0';
-
-    //     //encrypt and add to list for send thread
-    //     List_append(listTx, newItem);
-    //     char *appendedItem = List_first(listTx);
-    //     printf("Appended the following message: %s", appendedItem);
-    // }
-    // pthread_exit(NULL);
-
-
-
-
-
     printf("keyboard threading...\n");
     
 
