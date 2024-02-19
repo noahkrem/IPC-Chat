@@ -54,6 +54,7 @@ Finding host name: type "hostname" into the command line
 
 
 #define NUM_THREADS 4
+#define BUFFER_SIZE 1024
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
