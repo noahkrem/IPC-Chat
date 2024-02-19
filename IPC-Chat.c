@@ -85,23 +85,42 @@ enum thread_type {
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
 
+    // char buffer[4096];
+    // while(1) { //main while loop
+
+    //     //get and process keyboard input
+    //     fgets(buffer, 4096, stdin);
+    //     char * newItem = (char *)malloc(strlen(buffer) + 1);
+    //     strcpy(newItem, buffer);
+    //     newItem[strlen(buffer)] = '\0';
+
+    //     //encrypt and add to list for send thread
+    //     List_append(listTx, newItem);
+    //     char *appendedItem = List_first(listTx);
+    //     printf("Appended the following message: %s", appendedItem);
+    // }
+    // pthread_exit(NULL);
+
+
+
+
+
     printf("keyboard threading...\n");
     
 
     // LOOP
     while(1) {
-        
+
         char messageTx[BUFFER_SIZE]; // Buffer for input from keyboard
         fgets(messageTx, BUFFER_SIZE, stdin);
-        char *newMessage = messageTx;
+        char *newMessage = (char *)malloc(strlen(messageTx));
         strcpy(newMessage, messageTx);
         
-        printf("List_append the following message: %s", newMessage);
-        pthread_mutex_lock(&mutex);
-        List_append(listTx, &newMessage);
+        pthread_mutex_lock(&mutex);     // Lock thread
+        List_append(listTx, newMessage);
         char *appendedItem = List_first(listTx);
-        printf("Appended the following message: %s\n", appendedItem);
-        pthread_mutex_unlock(&mutex);
+        printf("Appended the following message from keyboard: %s", appendedItem);
+        pthread_mutex_unlock(&mutex);   // Unlock thread
 
     }
 
@@ -121,8 +140,8 @@ void * UDP_output_thread() {
     memset(&sock_out, 0, sizeof(sock_out));
     sock_out.sin_family = AF_INET;
     inet_aton(outputIP, &addr_out);
-    sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;    // htonl = host to network long
-    sock_out.sin_port = htons(remotePort); // htons = host to network short
+    sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
+    sock_out.sin_port = htons(remotePort);                      // htons = host to network short
 
 
     // CREATE AND BIND SOCKET
@@ -139,6 +158,7 @@ void * UDP_output_thread() {
         // SEND REPLY
         if (List_count(listTx) > 0) {
             
+            pthread_mutex_lock(&mutex);     // Lock thread
             void *output_void = List_first(listTx);
             List_remove(listTx);
             char *output = output_void;
@@ -149,6 +169,7 @@ void * UDP_output_thread() {
             if (status < 0) {
                 perror("Failed to send");
             }
+            pthread_mutex_unlock(&mutex);   // Unlock thread
 
         }
     }
@@ -172,7 +193,7 @@ void * UDP_input_thread() {
     memset(&sock_in, 0, sizeof(sock_in));
     sock_in.sin_family = AF_INET;
     sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
-    sock_in.sin_port = htons(localPort); // htons = host to network short
+    sock_in.sin_port = htons(localPort);            // htons = host to network short
 
     // CREATE AND BIND SOCKET
     int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
