@@ -160,12 +160,11 @@ void * UDP_output_thread() {
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            
             pthread_mutex_lock(&mutex);     // Lock thread
-            void *output_void = List_first(listTx);
+            // void *output_void = List_first(listTx);
+            char *output = List_first(listTx);
             List_remove(listTx);
-            char *output = output_void;
-            int status = sendto(socketDescriptor, output, sizeof(output), 0, 
+            int status = sendto(socketDescriptor, output, strlen(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
             if (status < 0) {
                 perror("Failed to send");
@@ -230,7 +229,6 @@ void * UDP_input_thread() {
         }
         // PROCESS MESSAGE
         if (bytesRx > 0) {
-
             char *message = (char *)malloc(strlen(messageRx));
             strcpy(message, messageRx);
 
