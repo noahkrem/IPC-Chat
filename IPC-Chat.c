@@ -280,7 +280,11 @@ void * UDP_input_thread() {
             //printf("\n\ninput: %s\n\n", messageRx);
             char *message = (char *)malloc(strlen(messageRx));
             strcpy(message, messageRx);
+<<<<<<< HEAD
             strncpy(messageRx, "", strlen(messageRx));
+=======
+            strncpy(messageRx,"",strlen(messageRx));
+>>>>>>> eedece83400533e2d2cc74cff4ea76fe11781291
             
             if (strcmp(message, CODE_EXIT) == 0) {
                 
