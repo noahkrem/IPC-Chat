@@ -141,14 +141,20 @@ void * keyboard_thread () {
                 status_exit = true;
                 
                 // UNLOCK THREAD
+                pthread_cond_signal(&condRx);
                 pthread_cond_signal(&condTx);
                 pthread_mutex_unlock(&mutex);
+
+                // FREE
                 pthread_exit(NULL);
             }
             // UNLOCK THREAD
             pthread_cond_signal(&condTx);
             pthread_mutex_unlock(&mutex);   
         }
+
+        // FREE
+
     }
 
     pthread_exit(NULL);
@@ -285,6 +291,10 @@ void * UDP_input_thread() {
                 printf("Exiting UDP input thread...\n");
                 status_exit = true;
                 
+                pthread_cond_signal(&condRx);
+
+                // FREE
+
                 // UNLOCK THREAD
                 close(socketDescriptor);
                 // pthread_mutex_unlock(&mutex);
@@ -296,6 +306,8 @@ void * UDP_input_thread() {
             List_append(listRx, message);
             pthread_cond_signal(&condRx);
             pthread_mutex_unlock(&mutex);
+
+            // FREE
         }
     }
     
@@ -314,20 +326,26 @@ void * screen_output_thread() {
     // LOOP
     while(1) {
 
+
+        // LOCK THREAD
+        pthread_mutex_lock(&mutex);
+        pthread_cond_wait(&condRx, &mutex);
+
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
             printf("Exiting screen output thread...\n");
+            pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
         }
         else if (List_count(listRx) > 0) {
             
-            // LOCK THREAD
-            pthread_mutex_lock(&mutex);
             char *message = List_first(listRx);
             List_remove(listRx);
-            printf(">> %s", message);
             // UNLOCK THREAD
             pthread_mutex_unlock(&mutex);
+
+            // PRINT MESSAGE
+            printf(">> %s", message);
         }
 
     }
@@ -382,6 +400,7 @@ int main (int argc, char *argv[]) {
     pthread_join(tids[SCREEN_OUTPUT], NULL);
 
 
+    // FREE
     
     return 0;
 }
