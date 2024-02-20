@@ -274,9 +274,8 @@ void * UDP_input_thread() {
         // PROCESS MESSAGE
         if (bytesRx > 0) {
             // LOCK THREAD
-            pthread_mutex_lock(&mutex);
+            // pthread_mutex_lock(&mutex);
 
-            //printf("\n\ninput: %s\n\n", messageRx);
             char *message = (char *)malloc(strlen(messageRx));
             strcpy(message, messageRx);
             strncpy(messageRx, "", strlen(messageRx));
@@ -287,13 +286,13 @@ void * UDP_input_thread() {
                 status_exit = true;
                 
                 // UNLOCK THREAD
-                pthread_cond_signal(&condRx);
-                pthread_mutex_unlock(&mutex);
                 close(socketDescriptor);
+                // pthread_mutex_unlock(&mutex);
                 pthread_exit(NULL);
 
             }
-            
+
+            pthread_mutex_lock(&mutex);
             List_append(listRx, message);
             pthread_cond_signal(&condRx);
             pthread_mutex_unlock(&mutex);
@@ -324,7 +323,6 @@ void * screen_output_thread() {
             
             // LOCK THREAD
             pthread_mutex_lock(&mutex);
-            pthread_cond_wait(&condRx, &mutex);
             char *message = List_first(listRx);
             List_remove(listRx);
             printf(">> %s", message);
