@@ -71,6 +71,8 @@ int remotePort;
 char *outputIP;
 pthread_t tids[NUM_THREADS];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condTx = PTHREAD_COND_INITIALIZER;
+pthread_cond_t condRx = PTHREAD_COND_INITIALIZER;
 bool status_exit;
 
 
@@ -97,6 +99,7 @@ void * keyboard_thread () {
         fgets(messageTx, BUFFER_SIZE, stdin);
         char *newMessage = (char *)malloc(strlen(messageTx));
         strcpy(newMessage, messageTx);
+        fflush(stdin);
 
         // LOCK THREAD
         pthread_mutex_lock(&mutex);     
@@ -109,11 +112,13 @@ void * keyboard_thread () {
             status_exit = true;
             
             // UNLOCK THREAD
+            pthread_cond_signal(&condTx);
             pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
         }
 
         // UNLOCK THREAD
+        pthread_cond_signal(&condTx);
         pthread_mutex_unlock(&mutex);   
 
     }
@@ -149,18 +154,22 @@ void * UDP_output_thread() {
     // LOOP
     while (1) {
 
+        // LOCK THREAD, AWAIT CONDITION
+        pthread_mutex_lock(&mutex);
+        pthread_cond_wait(&condTx, &mutex);
+
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
 
             printf("Exiting UDP output thread...\n");
             // CLOSE SOCKET & THREAD
+            pthread_mutex_unlock(&mutex);   // Unlock thread
             close(socketDescriptor);
             pthread_exit(NULL);
 
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            pthread_mutex_lock(&mutex);     // Lock thread
             // void *output_void = List_first(listTx);
             char *output = List_first(listTx);
             List_remove(listTx);
@@ -275,6 +284,7 @@ void * screen_output_thread() {
             char *message = List_first(listRx);
             List_remove(listRx);
             printf("%s", message);
+            fflush(stdout);
         }
 
     }
