@@ -170,7 +170,6 @@ void * UDP_output_thread() {
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            // void *output_void = List_first(listTx);
             char *output = List_first(listTx);
             List_remove(listTx);
             int status = sendto(socketDescriptor, output, strlen(output), 0, 
@@ -238,11 +237,13 @@ void * UDP_input_thread() {
         }
         // PROCESS MESSAGE
         if (bytesRx > 0) {
-            char *message = (char *)malloc(strlen(messageRx));
-            strcpy(message, messageRx);
-
             // LOCK THREAD
             pthread_mutex_lock(&mutex);
+
+            //printf("\n\ninput: %s\n\n", messageRx);
+            char *message = (char *)malloc(strlen(messageRx));
+            strcpy(message, messageRx);
+            strncpy(messageRx,"",strlen(messageRx));
             
             if (strncmp(message, CODE_EXIT, 1) == 0) {
                 
