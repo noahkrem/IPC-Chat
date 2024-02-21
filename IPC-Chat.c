@@ -85,6 +85,12 @@ enum thread_type {
 };
 
 
+void free_fn(void *item) {
+    free(item);
+    item = NULL;
+}
+
+
 // Source: https://web.archive.org/web/20170407122137/http://cc.byexamples.com/2007/04/08/non-blocking-user-input-in-loop-without-ncurses/
 int kbhit() {
 
@@ -153,8 +159,6 @@ void * keyboard_thread () {
             pthread_mutex_unlock(&mutex);   
         }
 
-        // FREE
-
     }
 
     pthread_exit(NULL);
@@ -197,7 +201,9 @@ void * UDP_output_thread() {
 
             printf("Exiting UDP output thread...\n");
 
-            char *output = List_first(listTx);
+            void *output_void = List_first(listTx);
+            char *output = (char *)malloc(sizeof(output_void));
+            strcpy(output, (char *)output_void);
             List_remove(listTx);
             int status = sendto(socketDescriptor, output, strlen(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
@@ -207,12 +213,20 @@ void * UDP_output_thread() {
             // CLOSE SOCKET & THREAD
             pthread_mutex_unlock(&mutex);   // Unlock thread
             close(socketDescriptor);
+
+            // FREE
+            free(output);   // Causing errors
+            output = NULL;
+
             pthread_exit(NULL);
 
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            char *output = List_first(listTx);
+            
+            void *output_void = List_first(listTx);
+            char *output = (char *)malloc(sizeof(output_void));
+            strcpy(output, (char *)output_void);
             List_remove(listTx);
             int status = sendto(socketDescriptor, output, strlen(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
@@ -220,6 +234,11 @@ void * UDP_output_thread() {
                 perror("Failed to send");
             }
             pthread_mutex_unlock(&mutex);   // Unlock thread
+
+            // FREE
+            free(output);
+            // free(output_void);   // Should double free I think, but doesn't actually
+            output = NULL;
 
         }
     }
@@ -346,6 +365,8 @@ void * screen_output_thread() {
 
             // PRINT MESSAGE
             printf(">> %s", message);
+
+            free(message);
         }
 
     }
@@ -401,6 +422,9 @@ int main (int argc, char *argv[]) {
 
 
     // FREE
+    free(outputIP);
+    List_free(listRx, free_fn);
+    List_free(listTx, free_fn);
     
     return 0;
 }
