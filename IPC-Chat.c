@@ -178,8 +178,6 @@ void * UDP_output_thread() {
     sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
     sock_out.sin_port = htons(remotePort);                      // htons = host to network short
 
-
-    // CREATE AND BIND SOCKET
     int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
     if (socketDescriptor < 0) {
         perror("Failed to create remote socket\n");
@@ -266,14 +264,42 @@ void * UDP_input_thread() {
     sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
     sock_in.sin_port = htons(localPort);            // htons = host to network short
 
-    // CREATE AND BIND SOCKET
-    int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
-    if (socketDescriptor < 0) {
-        perror("Failed to create local socket\n");
-        exit(-1);
-    }
-    bind(socketDescriptor, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
+    // // CREATE AND BIND SOCKET
+    // int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
+    // if (socketDescriptor < 0) {
+    //     perror("Failed to create local socket\n");
+    //     exit(-1);
+    // }
+    // bind(socketDescriptor, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
     
+
+    struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_storage their_addr;
+    int rv, sockfd;
+
+    // CREATE AND BIND SOCKET
+    if ((rv = getaddrinfo(NULL, (void*)&localPort, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        // return 1;
+    }
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("listener: socket");
+            continue;
+        }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("listener: bind");
+            continue;
+        }
+
+        break;
+    }
+    if (p == NULL) {
+        fprintf(stderr, "listener: failed to bind socket\n");
+        // return 2;
+    }
+
 
     // LOOP
     while (1) {
@@ -383,6 +409,8 @@ void * screen_output_thread() {
 
 
 int main (int argc, char *argv[]) {
+    struct addrinfo hints, *servinfo, *p;
+
 
     if (argc < 4) {
         printf("Usage: s-talk [my port number] [remote machine name] [remote port number]\n");
@@ -404,6 +432,9 @@ int main (int argc, char *argv[]) {
         outputIP = (char *)malloc(strlen(argv[2]) + 1);
         strcpy(outputIP, argv[2]);
     }
+
+
+    
     struct in_addr addr_out;
     inet_aton(outputIP, &addr_out);
     
