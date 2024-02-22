@@ -178,11 +178,36 @@ void * UDP_output_thread() {
     sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
     sock_out.sin_port = htons(remotePort);                      // htons = host to network short
 
-    int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
-    if (socketDescriptor < 0) {
-        perror("Failed to create remote socket\n");
-        exit(-1);
+    int rv, sockfd;
+    struct addrinfo hints, *servinfo, *p;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    if((rv = getaddrinfo(outputIP, (void*) &remotePort, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     }
+    
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("error: output socket");
+            continue;
+        }
+    }
+
+    if (p == NULL) {
+        fprintf(stderr, "talker: failed to create socket\n");
+        // return;
+    }
+
+    
+    
+    // int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
+    // if (socketDescriptor < 0) {
+    //     perror("Failed to create remote socket\n");
+    //     exit(-1);
+    // }
 
 
     // LOOP
@@ -203,14 +228,14 @@ void * UDP_output_thread() {
             char *output = List_first(listTx);
 
             List_remove(listTx);
-            int status = sendto(socketDescriptor, output, sizeof(output), 0, 
-                    (struct sockaddr *)&sock_out, sizeof(sock_out));
+            int status = sendto(sockfd, output, sizeof(output), 0, 
+                    p->ai_addr, p->ai_addrlen);
             if (status < 0) {
                 perror("Failed to send");
             }
             // CLOSE SOCKET & THREAD
             pthread_mutex_unlock(&mutex);   // Unlock thread
-            close(socketDescriptor);
+            close(sockfd);
 
             // FREE
             // free(output);   // Causing errors
@@ -227,8 +252,8 @@ void * UDP_output_thread() {
 
             char *output = List_first(listTx);
             List_remove(listTx);
-            int status = sendto(socketDescriptor, (char *)output, strlen(output), 0, 
-                    (struct sockaddr *)&sock_out, sizeof(sock_out));
+            int status = sendto(sockfd, output, sizeof(output), 0, 
+                    p->ai_addr, p->ai_addrlen);
             if (status < 0) {
                 perror("Failed to send");
             }
@@ -244,7 +269,7 @@ void * UDP_output_thread() {
 
 
     // CLOSE SOCKET & THREAD
-    close(socketDescriptor);
+    close(sockfd);
     return NULL;
     // pthread_exit(NULL);
 
@@ -276,6 +301,11 @@ void * UDP_input_thread() {
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr;
     int rv, sockfd;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET6; // set to AF_INET to use IPv4
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
 
     // CREATE AND BIND SOCKET
     if ((rv = getaddrinfo(NULL, (void*)&localPort, &hints, &servinfo)) != 0) {
@@ -311,7 +341,7 @@ void * UDP_input_thread() {
         unsigned int sin_size = sizeof(sinRemote);   // In/out parameter
         char messageRx[BUFFER_SIZE];    // Client data written into here
                                                 // This is effectively a buffer for receive
-        int bytesRx = recvfrom(socketDescriptor, (char *)messageRx, BUFFER_SIZE, 0,
+        int bytesRx = recvfrom(sockfd, (char *)messageRx, BUFFER_SIZE, 0,
                                     (struct sockaddr *)&sinRemote, &sin_size);
 
 
@@ -320,7 +350,7 @@ void * UDP_input_thread() {
 
             printf("Exiting UDP input thread...\n");
             // CLOSE SOCKET & THREAD
-            close(socketDescriptor);
+            close(sockfd);
             pthread_exit(NULL);
 
         }
@@ -344,7 +374,7 @@ void * UDP_input_thread() {
                 message = NULL;
 
                 // CLOSE SOCKET
-                close(socketDescriptor);
+                close(sockfd);
                 pthread_exit(NULL);
 
             }
@@ -358,7 +388,7 @@ void * UDP_input_thread() {
     
 
     // CLOSE SOCKET
-    close(socketDescriptor);
+    close(sockfd);
     return NULL;
     //pthread_exit(NULL);
 }
