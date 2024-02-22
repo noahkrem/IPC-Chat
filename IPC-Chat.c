@@ -55,7 +55,7 @@ Finding host name: type "hostname" into the command line
 
 
 #define NUM_THREADS 4
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 256
 
 
 
@@ -108,9 +108,9 @@ int kbhit() {
 // On receipt of input, adds the input to the list of messages
 //  to be sent to the remote s-talk client
 void * keyboard_thread () {
-
-    printf("Keyboard thread...\n");
     
+    printf("Type your messages here!\n");
+    printf("Received messages are denoted by '>>'\n\n");
 
     // LOOP
     while(1) {
@@ -132,36 +132,34 @@ void * keyboard_thread () {
 
         char messageTx[BUFFER_SIZE]; // Buffer for input from keyboard
         fgets(messageTx, BUFFER_SIZE, stdin);
-        char *newMessage = (char *)malloc(strlen(messageTx));
-        strcpy(newMessage, messageTx);
+        char *newMessage = messageTx;
+        // char *newMessage = (char *)malloc(strlen(messageTx));
+        // strcpy(newMessage, messageTx);
 
-        if (strlen(newMessage) > 0) {
+        // LOCK THREAD
+        pthread_mutex_lock(&mutex);     
+        List_append(listTx, newMessage);
 
-            // LOCK THREAD
-            pthread_mutex_lock(&mutex);     
-            List_append(listTx, newMessage);
-
-            // Exit status recognized, initiate exit procedure
-            if (strcmp(newMessage, CODE_EXIT) == 0) {
-                printf("Exiting keyboard thread...\n");
-                status_exit = true;
-                
-                // UNLOCK THREAD
-                pthread_cond_signal(&condRx);
-                pthread_cond_signal(&condTx);
-                pthread_mutex_unlock(&mutex);
-
-                // FREE
-                pthread_exit(NULL);
-            }
+        // Exit status recognized, initiate exit procedure
+        if (strcmp(newMessage, CODE_EXIT) == 0) {
+            printf("Exiting keyboard thread...\n");
+            status_exit = true;
+            
             // UNLOCK THREAD
+            pthread_cond_signal(&condRx);
             pthread_cond_signal(&condTx);
-            pthread_mutex_unlock(&mutex);   
+            pthread_mutex_unlock(&mutex);
+            pthread_exit(NULL);
         }
+        // UNLOCK THREAD
+        pthread_cond_signal(&condTx);
+        pthread_mutex_unlock(&mutex);
 
+        newMessage = NULL;
     }
 
-    pthread_exit(NULL);
+    return NULL;
+    // pthread_exit(NULL);
 }
 
 // Take each message off this list and send it over the network
@@ -201,11 +199,13 @@ void * UDP_output_thread() {
 
             printf("Exiting UDP output thread...\n");
 
-            void *output_void = List_first(listTx);
-            char *output = (char *)malloc(sizeof(output_void));
-            strcpy(output, (char *)output_void);
+            // void *output_void = List_first(listTx);
+            // char *output = (char *)malloc(sizeof(output_void));
+            // strcpy(output, (char *)output_void);
+            char *output = List_first(listTx);
+
             List_remove(listTx);
-            int status = sendto(socketDescriptor, output, strlen(output), 0, 
+            int status = sendto(socketDescriptor, output, sizeof(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
             if (status < 0) {
                 perror("Failed to send");
@@ -215,7 +215,7 @@ void * UDP_output_thread() {
             close(socketDescriptor);
 
             // FREE
-            free(output);   // Causing errors
+            // free(output);   // Causing errors
             output = NULL;
 
             pthread_exit(NULL);
@@ -223,12 +223,13 @@ void * UDP_output_thread() {
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            
-            void *output_void = List_first(listTx);
-            char *output = (char *)malloc(sizeof(output_void));
-            strcpy(output, (char *)output_void);
+            // void *output_void = List_first(listTx);
+            // char *output = (char *)malloc(sizeof(output_void));
+            // strcpy(output, (char *)output_void);
+
+            char *output = List_first(listTx);
             List_remove(listTx);
-            int status = sendto(socketDescriptor, output, strlen(output), 0, 
+            int status = sendto(socketDescriptor, (char *)output, strlen(output), 0, 
                     (struct sockaddr *)&sock_out, sizeof(sock_out));
             if (status < 0) {
                 perror("Failed to send");
@@ -236,7 +237,7 @@ void * UDP_output_thread() {
             pthread_mutex_unlock(&mutex);   // Unlock thread
 
             // FREE
-            free(output);
+            // free(output);
             // free(output_void);   // Should double free I think, but doesn't actually
             output = NULL;
 
@@ -246,7 +247,8 @@ void * UDP_output_thread() {
 
     // CLOSE SOCKET & THREAD
     close(socketDescriptor);
-    pthread_exit(NULL);
+    return NULL;
+    // pthread_exit(NULL);
 
 }
 
@@ -298,11 +300,10 @@ void * UDP_input_thread() {
         }
         // PROCESS MESSAGE
         if (bytesRx > 0) {
-            // LOCK THREAD
-            // pthread_mutex_lock(&mutex);
 
-            char *message = (char *)malloc(strlen(messageRx));
+            char *message = (char *)malloc(strlen(messageRx) + 1);
             strcpy(message, messageRx);
+            message[strlen(messageRx)] = '\0';
             strncpy(messageRx, "", strlen(messageRx));
             
             if (strcmp(message, CODE_EXIT) == 0) {
@@ -313,10 +314,11 @@ void * UDP_input_thread() {
                 pthread_cond_signal(&condRx);
 
                 // FREE
+                free(message);
+                message = NULL;
 
-                // UNLOCK THREAD
+                // CLOSE SOCKET
                 close(socketDescriptor);
-                // pthread_mutex_unlock(&mutex);
                 pthread_exit(NULL);
 
             }
@@ -325,15 +327,14 @@ void * UDP_input_thread() {
             List_append(listRx, message);
             pthread_cond_signal(&condRx);
             pthread_mutex_unlock(&mutex);
-
-            // FREE
         }
     }
     
 
     // CLOSE SOCKET
     close(socketDescriptor);
-    pthread_exit(NULL);
+    return NULL;
+    //pthread_exit(NULL);
 }
 
 // Take each message off of the list and output to the screen
@@ -353,6 +354,7 @@ void * screen_output_thread() {
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
             printf("Exiting screen output thread...\n");
+
             pthread_mutex_unlock(&mutex);
             pthread_exit(NULL);
         }
@@ -360,18 +362,23 @@ void * screen_output_thread() {
             
             char *message = List_first(listRx);
             List_remove(listRx);
+
             // UNLOCK THREAD
             pthread_mutex_unlock(&mutex);
 
             // PRINT MESSAGE
             printf(">> %s", message);
 
+            // FREE
             free(message);
+            message = NULL;
+
         }
 
     }
 
-    pthread_exit(NULL);
+    return NULL;
+    // pthread_exit(NULL);
 }
 
 
@@ -419,7 +426,6 @@ int main (int argc, char *argv[]) {
     pthread_join(tids[UDP_INPUT], NULL);
     pthread_join(tids[UDP_OUTPUT], NULL);
     pthread_join(tids[SCREEN_OUTPUT], NULL);
-
 
     // FREE
     free(outputIP);
