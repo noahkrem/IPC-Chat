@@ -209,7 +209,7 @@ void * UDP_output_thread() {
             List_remove(listTx);
 
             int status;
-            if ((status = sendto(sockfd, output, sizeof(output), 0, 
+            if ((status = sendto(sockfd, output, strlen(output), 0, 
                                 p->ai_addr, p->ai_addrlen)) == -1) {
 
                 perror("UDP Output: sendto");
@@ -229,7 +229,7 @@ void * UDP_output_thread() {
             char *output = List_first(listTx);
             List_remove(listTx);
 
-            int status = sendto(sockfd, output, sizeof(output), 0, 
+            int status = sendto(sockfd, output, strlen(output), 0, 
                                 p->ai_addr, p->ai_addrlen);
             if (status < 0) {
                 perror("Failed to send");
