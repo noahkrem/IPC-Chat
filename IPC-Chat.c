@@ -165,8 +165,6 @@ void * keyboard_thread () {
 //  to the remote client
 void * UDP_output_thread() {
 
-    printf("UDP output thread...\n");
-
     // INITIALIZE SOCKETS
     int sockfd, rv, bytesTx;
     struct addrinfo hints, *servinfo, *p;
@@ -294,9 +292,6 @@ void * UDP_input_thread() {
     }
 
     freeaddrinfo(servinfo); // No longer need this structure
-
-
-    printf("UDP Input waiting to receive...\n");
     
 
     // LOOP
@@ -313,7 +308,7 @@ void * UDP_input_thread() {
         messageRx[bytesRx] = '\0';
 
         // TESTING 
-        printf("UDP Input: packet is %d bytes long\n", bytesRx);
+        // printf("UDP Input: packet is %d bytes long\n", bytesRx);
 
 
         // Exit status recognized, initiate exit procedure
@@ -439,10 +434,9 @@ int main (int argc, char *argv[]) {
 
 
     // FREE
-    free(outputIP);
     List_free(listRx, free_fn);
     List_free(listTx, free_fn);
-    
+
     
     return 0;
 }
