@@ -67,8 +67,8 @@ const char LOCAL_HOST[] = "127.0.0.1";  // Used to communicate with two terminal
 // GLOBALS
 List *listRx;
 List *listTx;
-int localPort;
-int remotePort;
+char *localPort;
+char* remotePort;
 char *outputIP;
 pthread_t tids[NUM_THREADS];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -174,9 +174,9 @@ void * UDP_output_thread() {
     struct in_addr addr_out;
     memset(&sock_out, 0, sizeof(sock_out));
     sock_out.sin_family = AF_INET;
-    inet_aton(outputIP, &addr_out);
+    // inet_aton(outputIP, &addr_out);
     sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
-    sock_out.sin_port = htons(remotePort);                      // htons = host to network short
+    // sock_out.sin_port = htons(remotePort);                      // htons = host to network short
 
     int rv, sockfd;
     struct addrinfo hints, *servinfo, *p;
@@ -185,8 +185,10 @@ void * UDP_output_thread() {
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
 
-    if((rv = getaddrinfo(outputIP, (void*) &remotePort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    printf("\n\noutputIP: %s\n\n", outputIP);
+
+    if((rv = getaddrinfo(outputIP, remotePort, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "output getaddrinfo: %s\n", gai_strerror(rv));
     }
     
     for(p = servinfo; p != NULL; p = p->ai_next) {
@@ -287,7 +289,7 @@ void * UDP_input_thread() {
     memset(&sock_in, 0, sizeof(sock_in));
     sock_in.sin_family = AF_INET;
     sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
-    sock_in.sin_port = htons(localPort);            // htons = host to network short
+    // sock_in.sin_port = htons(localPort);            // htons = host to network short
 
     // // CREATE AND BIND SOCKET
     // int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
@@ -308,8 +310,8 @@ void * UDP_input_thread() {
     hints.ai_flags = AI_PASSIVE; // use my IP
 
     // CREATE AND BIND SOCKET
-    if ((rv = getaddrinfo(NULL, (void*)&localPort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    if ((rv = getaddrinfo(NULL, localPort, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "input getaddrinfo: %s\n", gai_strerror(rv));
         // return 1;
     }
     for(p = servinfo; p != NULL; p = p->ai_next) {
@@ -451,8 +453,10 @@ int main (int argc, char *argv[]) {
     status_exit = false;
 
     // Map ports
-    localPort = atoi(argv[1]);
-    remotePort = atoi(argv[3]);
+    // localPort = atoi(argv[1]);
+    // remotePort = atoi(argv[3]); 
+    localPort = argv[1];
+    remotePort = argv[3];
 
     // Find the IP address of the remote terminal
     if (strcmp(argv[2], "localhost") == 0) {
@@ -465,8 +469,8 @@ int main (int argc, char *argv[]) {
 
 
     
-    struct in_addr addr_out;
-    inet_aton(outputIP, &addr_out);
+    // struct in_addr addr_out;
+    // inet_aton(outputIP, &addr_out);
     
 
     // CREATE LISTS
@@ -474,6 +478,8 @@ int main (int argc, char *argv[]) {
     listTx = List_create();
 
     pthread_attr_t attr[NUM_THREADS];
+
+    // printf("\n\noutputIP: %s\n\n", outputIP);
 
     // CREATE THREADS
     pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);

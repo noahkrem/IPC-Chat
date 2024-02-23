@@ -3,7 +3,7 @@
 all: s-talk
 
 s-talk: List.o IPC-Chat.o
-	gcc List.o IPC-Chat.o -o s-talk
+	gcc -pthread List.o IPC-Chat.o -o s-talk
 
 List.o: List.c List.h
 	gcc -c List.c
