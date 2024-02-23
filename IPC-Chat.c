@@ -109,7 +109,6 @@ void * keyboard_thread () {
             
             // Exit status recognized, initiate exit procedure
             if (status_exit == true) {
-                printf("Exiting keyboard thread...\n");
                 pthread_mutex_lock(&mutex);
                 char *exitMessage = "!\n";
                 List_append(listTx, exitMessage);
@@ -128,7 +127,6 @@ void * keyboard_thread () {
         // Exit status recognized, initiate exit procedure
         if (strcmp(messageTx, CODE_EXIT) == 0) {
             
-            printf("Exiting keyboard thread...\n");
             status_exit = true;
 
             // LOCK THREAD
@@ -202,8 +200,6 @@ void * UDP_output_thread() {
 
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
-
-            printf("Exiting UDP output thread...\n");
 
             char *output = List_first(listTx);
             List_remove(listTx);
@@ -330,7 +326,6 @@ void * UDP_input_thread() {
             
             if (strcmp(message, CODE_EXIT) == 0) {
                 
-                printf("Exiting UDP input thread...\n");
                 status_exit = true;
                 
                 pthread_cond_signal(&condRx);
@@ -370,8 +365,6 @@ void * screen_output_thread() {
 
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
-            printf("Exiting screen output thread...\n");
-
             pthread_mutex_unlock(&mutex);
             return NULL;
         }
