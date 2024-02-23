@@ -18,16 +18,6 @@
 Pthreads:
     int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 
-Sockets:
-    int socket(int domain, int type, int protocol);
-
-Bind: 
-    int bind(int sockfd, const struct sockaddr *addr, socklen_t arrlen);
-    Assigns address specified by addr to the socket referred to by the file descriptor sockfd.  addrlen
-        specifies the size, in bytes, of the address structure pointed to by addr.
-    It is normally necessary to assign a local address using bind() before a SOCK_STREAM socket may 
-        receive connections
-
 Send:
     ssize_t send(int sockfd, const void *buf, size_t len, int flags);
     ssize_t sendto(int sockfd, const void *buf, size_t len, int flags,
@@ -68,7 +58,7 @@ const char LOCAL_HOST[] = "127.0.0.1";  // Used to communicate with two terminal
 List *listRx;
 List *listTx;
 char *localPort;
-char* remotePort;
+char *remotePort;
 char *outputIP;
 pthread_t tids[NUM_THREADS];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -90,7 +80,7 @@ void free_fn(void *item) {
     item = NULL;
 }
 
-
+// Function for non-blocking user input
 // Source: https://web.archive.org/web/20170407122137/http://cc.byexamples.com/2007/04/08/non-blocking-user-input-in-loop-without-ncurses/
 int kbhit() {
 
@@ -121,11 +111,12 @@ void * keyboard_thread () {
             if (status_exit == true) {
                 printf("Exiting keyboard thread...\n");
                 pthread_mutex_lock(&mutex);
-                char *exitMessage = "!/n";
+                char *exitMessage = "!\n";
                 List_append(listTx, exitMessage);
                 pthread_cond_signal(&condTx);
                 pthread_mutex_unlock(&mutex);
-                pthread_exit(NULL);
+                return NULL;
+                // pthread_exit(NULL);
             }
             usleep(100);
         }
@@ -133,29 +124,43 @@ void * keyboard_thread () {
         char messageTx[BUFFER_SIZE]; // Buffer for input from keyboard
         fgets(messageTx, BUFFER_SIZE, stdin);
         char *newMessage = messageTx;
+        newMessage[strlen(messageTx)] = '\0';
+
         // char *newMessage = (char *)malloc(strlen(messageTx));
         // strcpy(newMessage, messageTx);
+
+        // Exit status recognized, initiate exit procedure
+        if (strcmp(messageTx, CODE_EXIT) == 0) {
+            
+            printf("Exiting keyboard thread...\n");
+            status_exit = true;
+
+            // LOCK THREAD
+            pthread_mutex_lock(&mutex);     
+            List_append(listTx, newMessage);
+            
+            // UNLOCK THREAD
+            pthread_cond_signal(&condRx);
+            pthread_cond_signal(&condTx);
+
+            // Wait for output thread to complete before exiting.
+            // Doing so removes the issue of invalid reads by the output thread upon exit 
+            pthread_cond_wait(&condTx, &mutex);
+
+            pthread_mutex_unlock(&mutex);
+
+
+            return NULL;
+            // pthread_exit(NULL);
+        }
 
         // LOCK THREAD
         pthread_mutex_lock(&mutex);     
         List_append(listTx, newMessage);
 
-        // Exit status recognized, initiate exit procedure
-        if (strcmp(newMessage, CODE_EXIT) == 0) {
-            printf("Exiting keyboard thread...\n");
-            status_exit = true;
-            
-            // UNLOCK THREAD
-            pthread_cond_signal(&condRx);
-            pthread_cond_signal(&condTx);
-            pthread_mutex_unlock(&mutex);
-            pthread_exit(NULL);
-        }
         // UNLOCK THREAD
         pthread_cond_signal(&condTx);
         pthread_mutex_unlock(&mutex);
-
-        newMessage = NULL;
     }
 
     return NULL;
@@ -168,43 +173,48 @@ void * UDP_output_thread() {
 
     printf("UDP output thread...\n");
 
-
     // INITIALIZE SOCKETS
-    struct sockaddr_in sock_out;
-    struct in_addr addr_out;
-    memset(&sock_out, 0, sizeof(sock_out));
-    sock_out.sin_family = AF_INET;
-    // inet_aton(outputIP, &addr_out);
-    sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
-    // sock_out.sin_port = htons(remotePort);                      // htons = host to network short
-
-    int rv, sockfd;
+    int sockfd, rv, bytesTx;
     struct addrinfo hints, *servinfo, *p;
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET6;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
-    printf("\n\noutputIP: %s\n\n", outputIP);
-
     if((rv = getaddrinfo(outputIP, remotePort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "output getaddrinfo: %s\n", gai_strerror(rv));
+        fprintf(stderr, "UDP Output: getaddrinfo: %s\n", gai_strerror(rv));
+        return NULL;
     }
-    
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("error: output socket");
+
+    // Loop through all the results and make a socket
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("Output UDP: socket");
             continue;
         }
+
+        break;
     }
 
     if (p == NULL) {
         fprintf(stderr, "talker: failed to create socket\n");
-        // return;
+        return NULL;
     }
 
     
-    
+
+
+    // // INITIALIZE SOCKETS
+    // struct sockaddr_in sock_out;
+    // struct in_addr addr_out;
+    // memset(&sock_out, 0, sizeof(sock_out));
+    // sock_out.sin_family = AF_INET;
+    // inet_aton(outputIP, &addr_out);
+    // sock_out.sin_addr.s_addr = (in_addr_t)addr_out.s_addr;      // htonl = host to network long
+    // sock_out.sin_port = htons(remotePort);                      // htons = host to network short
+
+
+    // // CREATE AND BIND SOCKET
     // int socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0); // Create the socket locally
     // if (socketDescriptor < 0) {
     //     perror("Failed to create remote socket\n");
@@ -224,56 +234,45 @@ void * UDP_output_thread() {
 
             printf("Exiting UDP output thread...\n");
 
-            // void *output_void = List_first(listTx);
-            // char *output = (char *)malloc(sizeof(output_void));
-            // strcpy(output, (char *)output_void);
             char *output = List_first(listTx);
-
             List_remove(listTx);
-            int status = sendto(sockfd, output, sizeof(output), 0, 
-                    p->ai_addr, p->ai_addrlen);
-            if (status < 0) {
-                perror("Failed to send");
+
+            int status;
+            if ((status = sendto(sockfd, output, sizeof(output), 0, 
+                                p->ai_addr, p->ai_addrlen)) == -1) {
+
+                perror("UDP Output: sendto");
+                exit(1);
             }
+
             // CLOSE SOCKET & THREAD
+            pthread_cond_signal(&condTx);
             pthread_mutex_unlock(&mutex);   // Unlock thread
+            freeaddrinfo(servinfo);
             close(sockfd);
-
-            // FREE
-            // free(output);   // Causing errors
-            output = NULL;
-
-            pthread_exit(NULL);
-
+            return NULL;
         }
         // SEND REPLY
         else if (List_count(listTx) > 0) {
-            // void *output_void = List_first(listTx);
-            // char *output = (char *)malloc(sizeof(output_void));
-            // strcpy(output, (char *)output_void);
 
             char *output = List_first(listTx);
             List_remove(listTx);
+
             int status = sendto(sockfd, output, sizeof(output), 0, 
-                    p->ai_addr, p->ai_addrlen);
+                                p->ai_addr, p->ai_addrlen);
             if (status < 0) {
                 perror("Failed to send");
             }
+            
+            // UNLOCK
             pthread_mutex_unlock(&mutex);   // Unlock thread
-
-            // FREE
-            // free(output);
-            // free(output_void);   // Should double free I think, but doesn't actually
-            output = NULL;
-
         }
     }
 
-
     // CLOSE SOCKET & THREAD
+    freeaddrinfo(servinfo);
     close(sockfd);
     return NULL;
-    // pthread_exit(NULL);
 
 }
 
@@ -281,14 +280,12 @@ void * UDP_output_thread() {
 //  message on the list of messages that need to be printed to
 //  the local screen
 void * UDP_input_thread() {
-    
-    printf("UDP input thread...\n");
 
-    // INITIALIZE SOCKETS
-    struct sockaddr_in sock_in;
-    memset(&sock_in, 0, sizeof(sock_in));
-    sock_in.sin_family = AF_INET;
-    sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
+    // // INITIALIZE SOCKETS
+    // struct sockaddr_in sock_in;
+    // memset(&sock_in, 0, sizeof(sock_in));
+    // sock_in.sin_family = AF_INET;
+    // sock_in.sin_addr.s_addr = htonl(INADDR_ANY);    // htonl = host to network long
     // sock_in.sin_port = htons(localPort);            // htons = host to network short
 
     // // CREATE AND BIND SOCKET
@@ -298,63 +295,87 @@ void * UDP_input_thread() {
     //     exit(-1);
     // }
     // bind(socketDescriptor, (struct sockaddr*)&sock_in, sizeof(sock_in));    // Open socket
-    
 
+    int sockfd, rv, bytesRx;
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr;
-    int rv, sockfd;
+    socklen_t addr_len;
+    char s[INET6_ADDRSTRLEN];
+    char messageRx[BUFFER_SIZE];
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET6; // set to AF_INET to use IPv4
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
+    hints.ai_flags = AI_PASSIVE;    // Use local IP
 
-    // CREATE AND BIND SOCKET
     if ((rv = getaddrinfo(NULL, localPort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "input getaddrinfo: %s\n", gai_strerror(rv));
-        // return 1;
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return NULL;
     }
-    for(p = servinfo; p != NULL; p = p->ai_next) {
+
+    // Loop through all the results and bind to the first we can
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+        
         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            perror("listener: socket");
+            perror("UDP Input: socket");
             continue;
         }
+
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
-            perror("listener: bind");
+            perror("UDP Input: bind");
             continue;
         }
 
         break;
     }
+
     if (p == NULL) {
-        fprintf(stderr, "listener: failed to bind socket\n");
-        // return 2;
+        fprintf(stderr, "UDP Input: failed to bind to socket\n");
+        return NULL;
     }
 
+    freeaddrinfo(servinfo); // No longer need this structure
+
+
+    printf("UDP Input waiting to receive...\n");
+    
 
     // LOOP
     while (1) {
 
+        // RECEIVE        
+        addr_len = sizeof their_addr;
+        if ((bytesRx = recvfrom(sockfd, (char *)messageRx, BUFFER_SIZE-1, 0, 
+                                    (struct sockaddr *)&their_addr, &addr_len)) == -1 ) {
 
-        // RECEIVE
-        struct sockaddr_in sinRemote;   // Output parameter
-        memset(&sinRemote, 0, sizeof(sinRemote));
-        unsigned int sin_size = sizeof(sinRemote);   // In/out parameter
-        char messageRx[BUFFER_SIZE];    // Client data written into here
-                                                // This is effectively a buffer for receive
-        int bytesRx = recvfrom(sockfd, (char *)messageRx, BUFFER_SIZE, 0,
-                                    (struct sockaddr *)&sinRemote, &sin_size);
+            perror("UDP Input: recvfrom");
+            exit(1);
+        }
+        messageRx[bytesRx] = '\0';
+
+        // TESTING 
+        printf("UDP Input: packet is %d bytes long\n", bytesRx);
+
+
+        // // RECEIVE
+        // struct sockaddr_in sinRemote;   // Output parameter
+        // memset(&sinRemote, 0, sizeof(sinRemote));
+        // unsigned int sin_size = sizeof(sinRemote);   // In/out parameter
+        // char messageRx[BUFFER_SIZE];    // Client data written into here
+        //                                         // This is effectively a buffer for receive
+        // int bytesRx = recvfrom(socketDescriptor, (char *)messageRx, BUFFER_SIZE, 0,
+        //                             (struct sockaddr *)&sinRemote, &sin_size);
 
 
         // Exit status recognized, initiate exit procedure
         if (status_exit == true) {
 
             printf("Exiting UDP input thread...\n");
+            
             // CLOSE SOCKET & THREAD
             close(sockfd);
-            pthread_exit(NULL);
-
+            return NULL;
         }
         // PROCESS MESSAGE
         if (bytesRx > 0) {
@@ -377,7 +398,7 @@ void * UDP_input_thread() {
 
                 // CLOSE SOCKET
                 close(sockfd);
-                pthread_exit(NULL);
+                return NULL;
 
             }
 
@@ -388,18 +409,13 @@ void * UDP_input_thread() {
         }
     }
     
-
     // CLOSE SOCKET
     close(sockfd);
     return NULL;
-    //pthread_exit(NULL);
 }
 
 // Take each message off of the list and output to the screen
 void * screen_output_thread() {
-
-    printf("Screen output thread...\n");
-
 
     // LOOP
     while(1) {
@@ -414,7 +430,8 @@ void * screen_output_thread() {
             printf("Exiting screen output thread...\n");
 
             pthread_mutex_unlock(&mutex);
-            pthread_exit(NULL);
+            return NULL;
+            // pthread_exit(NULL);
         }
         else if (List_count(listRx) > 0) {
             
@@ -441,8 +458,6 @@ void * screen_output_thread() {
 
 
 int main (int argc, char *argv[]) {
-    struct addrinfo hints, *servinfo, *p;
-
 
     if (argc < 4) {
         printf("Usage: s-talk [my port number] [remote machine name] [remote port number]\n");
@@ -452,23 +467,20 @@ int main (int argc, char *argv[]) {
     // Set exit status
     status_exit = false;
 
-    // Map ports
-    // localPort = atoi(argv[1]);
-    // remotePort = atoi(argv[3]); 
+    // Map ports & IP
     localPort = argv[1];
     remotePort = argv[3];
-
-    // Find the IP address of the remote terminal
-    if (strcmp(argv[2], "localhost") == 0) {
-        outputIP = (char *)malloc(strlen(LOCAL_HOST) + 1);
-        strcpy(outputIP, LOCAL_HOST);
-    } else {
-        outputIP = (char *)malloc(strlen(argv[2]) + 1);
-        strcpy(outputIP, argv[2]);
-    }
+    outputIP = argv[2];
 
 
-    
+    // // Find the IP address of the remote terminal
+    // if (strcmp(argv[2], "localhost") == 0) {
+    //     outputIP = (char *)malloc(strlen(LOCAL_HOST) + 1);
+    //     strcpy(outputIP, LOCAL_HOST);
+    // } else {
+    //     outputIP = (char *)malloc(strlen(argv[2]) + 1);
+    //     strcpy(outputIP, argv[2]);
+    // }
     // struct in_addr addr_out;
     // inet_aton(outputIP, &addr_out);
     
@@ -476,10 +488,6 @@ int main (int argc, char *argv[]) {
     // CREATE LISTS
     listRx = List_create();
     listTx = List_create();
-
-    pthread_attr_t attr[NUM_THREADS];
-
-    // printf("\n\noutputIP: %s\n\n", outputIP);
 
     // CREATE THREADS
     pthread_create(&tids[KEYBOARD], NULL, keyboard_thread, NULL);
@@ -493,6 +501,7 @@ int main (int argc, char *argv[]) {
     pthread_join(tids[UDP_INPUT], NULL);
     pthread_join(tids[UDP_OUTPUT], NULL);
     pthread_join(tids[SCREEN_OUTPUT], NULL);
+
 
     // FREE
     free(outputIP);
