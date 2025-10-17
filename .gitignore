@@ -1,0 +1,71 @@
+#--------------------------------------------------
+# Generic C Project .gitignore
+#--------------------------------------------------
+
+# Compiled object files
+*.o
+*.obj
+
+# Compiled Dynamic Libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static Libraries
+*.a
+*.lib
+
+# Executable files
+*.out
+*.exe
+*.elf
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Dependency and build files
+*.d
+*.dep
+
+# Backup and temporary files
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Output directories (from Makefile builds)
+build/
+bin/
+obj/
+out/
+dist/
+
+# Debugger / profiler files
+*.gcda
+*.gcno
+*.gcov
+*.prof
+*.profraw
+
+# IDE / Editor metadata
+.vscode/
+.idea/
+*.code-workspace
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+#--------------------------------------------------
+# Optional: Ignore generated Makefiles (uncomment if needed)
+# Makefile
+#--------------------------------------------------
