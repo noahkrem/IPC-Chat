@@ -6,7 +6,6 @@ Ships as a single portable executable: `s-talk`.
 ![C](https://img.shields.io/badge/language-C-blue.svg)
 ![Makefile](https://img.shields.io/badge/build-Makefile-brightgreen.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
-![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
 ---
 
@@ -89,9 +88,19 @@ Produces the `s-talk` executable.
 To exit: press `!` then Enter (this requests a coordinated exit; if one side disconnects unexpectedly, terminate with Ctrl+C).
 
 
-## 🎥 Demo & Assets
+## 🎥 Demo
 
+Here’s a preview of the chat session in action:
 
+![Connected session screenshot](assets/session-screenshot.png)
+
+### Build Example
+![Build screenshot](assets/build-screenshot.png)
+
+### Quick Demo (GIF)
+
+Click on the below GIF to see a short demo of typing and graceful exit:
+![Quick typing and exit demo](assets/quick-demo.gif)
 
 
 ## 🧠 Notes for Interviewers
